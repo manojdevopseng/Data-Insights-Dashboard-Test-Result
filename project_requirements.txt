@@ -1,0 +1,546 @@
+I have mentioned below the all files to automated test result, in this automated test, I just want these following task and functionality:-
+1. whenever tester push their code on github the script will run automatically
+2. This test result will run on aws ecs, if there is no cluster and task definition please create it using terraform.
+
+
+config:
+	get_config.py
+pages:
+	- login_page:
+		__init__.py
+		login_page.py
+		login_page_elements.py
+	- programs_page:
+		__init__.py
+		programs_page.py
+		programs_page_elements.py
+	__init__.py
+	base_page.py
+	locator.py
+tests:
+	- features:
+		- api:
+			login_api.feature
+		- ui
+			login.feature
+	- steps:
+		- api:
+			test_login_api_steps.py
+		- ui
+			conftest.py
+			shared_steps.py
+			test_login_steps.py
+			test_navbar_steps.py
+	conftest.py
+utilities:
+.dockerignore
+.env_example
+.gitignore
+.gitmodules
+conftest.py
+docker-compose.yml
+Dockerfile
+pytest.ini
+pytest-container.dockerfile
+README.md
+requirements.txt
+-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+config/get_config.py:-
+import os
+
+
+class GetConfig:
+
+    @staticmethod
+    def get_ui_param(environment, param):
+        env_variable_name = f'{environment.upper()}_UI_{param.upper()}'
+        parameter = os.getenv(env_variable_name)
+        return parameter
+
+    @staticmethod
+    def get_user_name_and_password(environment, role='ADMIN') -> dict:
+        role = role.upper()
+        user = GetConfig.get_ui_param(environment, f'{role}_USER')
+        password = GetConfig.get_ui_param(environment, f'{role}_PASSWORD')
+
+        return {'user': user, 'password': password}
+
+    @staticmethod
+    def get_invalid_credentials(environment, role='ADMIN', user_or_password=None) -> dict:
+        user = GetConfig.get_ui_param(environment, f'{role}_USER')
+        password = GetConfig.get_ui_param(environment, f'{role}_PASSWORD')
+        if user_or_password is not None:
+            if user_or_password == 'user':
+                return {
+                    'user': 'test@invaliduser.com',
+                    'password': password
+                }
+            else:
+                return {
+                    'user': user,
+                    'password': 'InvalidPassword'
+                }
+        return {
+            'user': 'test@invaliduser.com',
+            'password': 'InvalidPassword'
+        }
+
+pages/login_page:-
+pages/__init__.py
+pages/login_page.py:-
+		from config.get_config import GetConfig
+from pages.login_page.login_page_elements import LoginPageElements
+
+
+class LoginPage(LoginPageElements):
+    def __init__(self, driver):
+        super().__init__(driver)
+        self.url = GetConfig.get_ui_param('QA', 'login_page')
+        self.page_title = 'Login'
+
+    def set_user_name(self, user_name) -> None:
+        self.user_name_input.set_text(user_name)
+
+    def set_password(self, password) -> None:
+        self.password_input.set_text(password)
+
+    def click_login_btn(self) -> None:
+        self.log_in_btn.click()
+
+    def click_forget_password_link(self) -> None:
+        self.forgot_password_link.click()
+
+    def click_terms_and_conditions_link(self) -> None:
+        self.terms_and_conditions_link.click()
+
+    def click_privacy_policy_link(self) -> None:
+        self.privacy_policy_link.click()
+
+	
+pages/login_page_elements.py
+	from selenium.webdriver.common.by import By
+
+from pages.base_page import BasePage
+from pages.locator import Locator
+from utilities.selenium_utils.webdriver_actions.element_actions import ElementActions
+
+
+class LoginPageElements(BasePage):
+    def __init__(self, driver):
+        super().__init__(driver)
+        self.driver = driver
+
+    @property
+    def user_name_input(self) -> ElementActions:
+        locator = Locator(by=By.ID, value='email')
+        return ElementActions(self.driver, locator)
+
+    @property
+    def password_input(self) -> ElementActions:
+        locator = Locator(by=By.CSS_SELECTOR, value='input[aria-label="password"]')
+        return ElementActions(self.driver, locator)
+
+    @property
+    def log_in_btn(self) -> ElementActions:
+        locator = Locator(by=By.XPATH, value='(//button[@label="LOG IN"])[1]')
+        return ElementActions(self.driver, locator)
+
+    @property
+    def forgot_password_link(self) -> ElementActions:
+        locator = Locator(by=By.LINK_TEXT, value='Forgot password?')
+        return ElementActions(self.driver, locator)
+
+    @property
+    def terms_and_conditions_link(self) -> ElementActions:
+        locator = Locator(by=By.CSS_SELECTOR, value='a[href="/terms"]')
+        return ElementActions(self.driver, locator)
+
+    @property
+    def privacy_policy_link(self) -> ElementActions:
+        locator = Locator(by=By.CSS_SELECTOR, value='a[href="/privacy"]')
+        return ElementActions(self.driver, locator)
+
+pages/programs_page/__init__.py
+pages/programs_page/programs_page.py:-
+	from pages.programs_page.programs_page_elements import ProgramsPageElements
+
+
+class ProgramsPage(ProgramsPageElements):
+    def __init__(self, driver):
+        super().__init__(driver)
+        self.page_title = 'Programs'
+
+	programs_page_elements.py:-
+		from pages.base_page import BasePage
+
+
+class ProgramsPageElements(BasePage):
+    def __init__(self, driver):
+        super().__init__(driver)
+
+pages/__init__.py
+pages/base_page.py:-	
+	from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support.expected_conditions import text_to_be_present_in_element
+
+
+class BasePage:
+    url = None
+    page_title = None
+
+    def __init__(self, driver):
+        self.driver = driver
+
+    def go_to(self):
+        self.driver.get(self.url)
+
+    def get_title(self):
+        return self.driver.title
+
+    def get_url(self):
+        return self.driver.current_url
+
+    def is_page_completely_loaded(self, timeout=30, poll_frequency=0.5):
+        return WebDriverWait(self.driver, timeout, poll_frequency).until(
+            lambda x: x.execute_script("return document.readyState === 'complete';")
+        )
+
+    def wait_until_page_is_loaded(self, timeout=30):
+        if self.is_page_completely_loaded():
+            WebDriverWait(self.driver, timeout).until(text_to_be_present_in_element((By.CSS_SELECTOR, "div.page-title"),
+                                                                                    self.page_title))
+
+pages/locator.py
+	from collections import namedtuple
+
+Locator = namedtuple('Locator', ['by', 'value'])
+
+test/conftest.py:-
+	from _pytest.fixtures import fixture
+
+
+def pytest_addoption(parser) -> None:
+    parser.addoption(
+        "--env",
+        action="store",
+        default='QA',
+        help="Which environment (Dev or QA) it's going to use"
+    )
+    parser.addoption(
+        "--browser",
+        action="store",
+        default='Chrome',
+        help="Which browser it's going to use"
+    )
+    parser.addoption(
+        "--remote_driver",
+        action="store",
+        default=False,
+        help="Specify if you're going to use remote driver"
+    )
+
+
+@fixture(scope='session')
+def browser(request: str) -> str:
+    return request.config.getoption("--browser")
+
+
+@fixture(scope='session')
+def env(request: str) -> str:
+    return request.config.getoption("--env")
+
+
+@fixture(scope='session')
+def remote_driver(request: str) -> str:
+    return request.config.getoption("--remote_driver")
+test/features/api/login_api.feature:-
+	Feature: Login API Functionality
+
+  @API @login
+  Scenario: Login using valid credentials
+    Given the user has valid admin credentials
+    When the user sends a POST request to "/admin/session/login"
+    Then the API should return a success response with "200" status code
+
+  @API @login
+  Scenario: Login using invalid credentials
+    Given the user has invalid credentials
+    When the user sends a POST request to "/admin/session/login"
+    Then the API should return a success response with "401" status code
+
+test/features/api/login.feature:-
+	Feature: Login Functionality
+  As a user I want to be able to log in into my account
+
+  Scenario: Valid Login credentials
+    Given the user logs in using "main_user" role
+    When the user clicks on login button
+    Then the user should be redirected to programs page
+
+  Scenario: Invalid credentials
+    Given the user puts invalid credentials
+    When the user clicks on login button
+    Then the user should see an error message indicating "Invalid username or password"
+
+  Scenario: Invalid Login credentials - Incorrect Username
+    Given the user puts invalid user credentials
+    When the user clicks on login button
+    Then the user should see an error message indicating "Invalid username or password"
+
+  Scenario: Invalid Login credentials - Incorrect Password
+    Given the user puts invalid password credentials
+    When the user clicks on login button
+    Then the user should see an error message indicating "Invalid username or password"
+
+tests/steps/api/test_login_api_steps.py:-
+	import json
+import requests
+from pytest_bdd import scenarios, given, when, then, parsers
+from config.get_config import GetConfig
+from utilities.loggin.loggin import log
+from utilities.loggin.Mylogger import MyLogger
+
+scenarios('api/login_api.feature')
+
+URL = "https://api.quat.invoidevelopment.com"
+headers = {
+    'Content-Type': 'application/json'
+}
+
+
+@log(my_logger=MyLogger())
+@given(
+    parsers.re(r"the user has (?P<credential_type>valid|invalid)(?: (?P<user_password>password|user))?"
+               r"(?: (?P<role>\w+))? credentials"),
+    converters={"credential_type": str, "role": str},
+    target_fixture='user_credentials')
+def get_user_credentials(credential_type: str, user_password:str, role: str) -> dict | None:
+    if credential_type == 'invalid':
+        return GetConfig.get_invalid_credentials('QA', user_or_password=user_password)
+    return GetConfig.get_user_name_and_password('QA', role)
+
+
+@log(my_logger=MyLogger())
+@when(parsers.parse('the user sends a POST request to "{endpoint}"'), target_fixture='response')
+def make_post_request_to_login_endpoint(endpoint: str, user_credentials: dict):
+    payload = json.dumps({
+        "email": user_credentials['user'],
+        "password": user_credentials['password']
+    })
+    response = requests.post(
+        URL + endpoint, headers=headers, data=payload, timeout=120)
+    return response
+
+
+@log(my_logger=MyLogger())
+@then(parsers.parse('the API should return a success response with "{code:d}" status code'))
+def validate_api_response_code(code: int, response) -> None:
+    assert response.status_code == code
+
+tests/steps/ui/conftest.py:-
+	from _pytest.fixtures import fixture
+from selenium import webdriver
+
+from utilities.driver_factory.driver_manage_factory import DriverManageFactory
+from pages.login_page.login_page import LoginPage
+from pages.programs_page.programs_page import ProgramsPage
+
+
+@fixture(autouse=True)
+def browser_driver(browser: str, remote_driver: bool) -> None:
+    selenium_manager = DriverManageFactory.driver_manager_browsers(browser)
+    driver = selenium_manager.create_driver(remote_driver)
+    yield driver
+    selenium_manager.quit_driver(driver)
+    selenium_manager.stop_service()
+
+
+@fixture()
+def login_page(browser_driver: webdriver) -> LoginPage:
+    return LoginPage(browser_driver)
+
+
+@fixture()
+def programs_page(browser_driver: webdriver) -> ProgramsPage:
+    return ProgramsPage(browser_driver)
+
+
+@fixture()
+def pages(browser_driver: webdriver) -> dict:
+    pages = {
+        "login_page": LoginPage(browser_driver),
+        "programs_page": ProgramsPage(browser_driver)
+    }
+    return pages
+
+tests/steps/ui/shared_steps.py:-
+	from pytest_bdd import parsers, given, when, then
+
+from utilities.loggin.Mylogger import MyLogger
+from utilities.loggin.loggin import log
+
+
+@log(my_logger=MyLogger())
+@then(parsers.parse('the user navigate to {navbar_option} page'))
+def select_navbar_option(navbar_option:str) -> None:
+    print('working')
+
+tests/steps/ui/test_login_steps.py:-
+	from pytest_bdd import scenarios, parsers, given, when, then
+
+from config.get_config import GetConfig
+from pages.login_page.login_page import LoginPage
+from utilities.loggin.Mylogger import MyLogger
+from utilities.loggin.loggin import log
+
+scenarios('ui/login.feature')
+
+
+@log(my_logger=MyLogger())
+@given(parsers.parse('the user logs in using "{role}" role'))
+def fill_user_name_and_password(env: str, login_page: LoginPage, role: str) -> None:
+    user_data = GetConfig.get_user_name_and_password(env, role)
+    login_page.go_to()
+    login_page.set_user_name(user_data["user"])
+    login_page.set_password(user_data["password"])
+
+
+@log(my_logger=MyLogger())
+@given(parsers.re(r"the user puts invalid\s(?P<user_or_password>user\s|password\s?)?credentials"))
+def fill_invalid_user_credentials(env: str, login_page: LoginPage, user_or_password: str) -> None:
+    user_credentials = GetConfig.get_invalid_credentials(environment=env, user_or_password=user_or_password)
+    login_page.go_to()
+    login_page.set_user_name(user_credentials["user"])
+    login_page.set_password(user_credentials["password"])
+
+
+@log(my_logger=MyLogger())
+@when('the user clicks on login button')
+def click_on_login_button(login_page: LoginPage) -> None:
+    login_page.click_login_btn()
+
+
+@log(my_logger=MyLogger())
+@then(parsers.parse('the user should be redirected to {page_name} page'))
+def check_user_redirected_to_specific_page(page_name: str, pages: dict) -> None:
+    page = pages[f'{page_name}_page']
+    page.wait_until_page_is_loaded()
+    page_url = page.get_url()
+    assert page_name in page_url
+
+
+@log(my_logger=MyLogger())
+@then(parsers.parse('the user should see an error message indicating "{error_message}"'))
+def user_should_see_an_error_message(error_message: str, login_page: LoginPage) -> None:
+    # TODO: Add the code to check the error message when error message bug is fixed
+    pass
+
+tests/steps/ui/test_navbar_steps.py
+
+./utilities
+./conftest.py:-
+	import time
+from pytest import fixture,yield_fixture
+from selenium import webdriver
+from dotenv import load_dotenv
+
+load_dotenv()
+
+./docker-compose.yml:-
+	version: "3"
+services:
+  chrome:
+    image: seleniarm/node-chromium:4.10.0
+    shm_size: 2gb
+    depends_on:
+      - selenium-hub
+    environment:
+      - SE_EVENT_BUS_HOST=selenium-hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+    ports:
+      - "7900:7900"
+
+  firefox:
+    image: seleniarm/node-firefox:4.10.0
+    shm_size: 2gb
+    depends_on:
+      - selenium-hub
+    environment:
+      - SE_EVENT_BUS_HOST=selenium-hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+    ports:
+      - "7901:7901"
+
+  selenium-hub:
+    image: seleniarm/hub:4.10.0
+    container_name: selenium-hub
+    ports:
+      - "4442:4442"
+      - "4443:4443"
+      - "4444:4444"
+
+./Dockerfile:-
+	FROM python:3.10
+
+WORKDIR /app
+
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+CMD ["pytest", "tests/steps/api"]
+
+./pytest.ini:-
+	[pytest]
+testpaths = tests
+python_files = test_*
+python_classes = *Tests
+python_functions = test_*
+addopts = -p no:warnings
+bdd_features_base_dir = tests/features/
+log_format = %(asctime)s %(levelname)s %(message)s
+log_date_format = %Y-%m-%d %H:%M:%S
+
+
+./pytest-container.dockerfile:-
+	FROM python:3.10
+
+WORKDIR /app
+
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+CMD ["pytest", "--remote_driver=True", "tests"]
+
+./requirements.txt:-
+	pylint
+pytest-bdd==6.1.1
+python-dotenv==1.0.0
+requests==2.31.0
+selenium==4.9.1
+webdriver-manager==3.9.1
+
+
+
+1st Method: ---- to run the project script use this command 	.\venv\Scripts\Activate
+								pip install -r requirements.txt
+								pytest tests/
+								cd /path/to/your/terraform/directory
+								terraform init
+								terraform apply
+								docker-compose up	
+
+2nd Method: ---- to run the project script use this command 	pip install -r requirements.txt
+								pytest tests/steps
+								docker-compose up
+								docker build -t test-container -f pytest-container.dockerfile .
+								docker run -e remote_driver=True test-container

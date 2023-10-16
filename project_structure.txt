@@ -1,0 +1,44 @@
+config:
+	get_config.py
+pages:
+	- login_page:
+		__init__.py
+		login_page.py
+		login_page_elements.py
+	- programs_page:
+		__init__.py
+		programs_page.py
+		programs_page_elements.py
+	__init__.py
+	base_page.py
+	locator.py
+tests:
+	- features:
+		- api:
+			login_api.feature
+		- ui
+			login.feature
+	- steps:
+		- api:
+			test_login_api_steps.py
+		- ui
+			conftest.py
+			shared_steps.py
+			test_login_steps.py
+			test_navbar_steps.py
+	conftest.py
+utilities:
+.dockerignore
+.env_example
+.gitignore
+.gitmodules
+conftest.py
+docker-compose.yml
+Dockerfile
+pytest.ini
+pytest-container.dockerfile
+README.md
+requirements.txt
+
+
+
