@@ -1,0 +1,45 @@
+# Use a base image with Python
+FROM python:3.11
+
+
+# Install Chrome and required dependencies
+RUN apt-get update && apt-get install -y \
+    wget \
+    unzip \
+    libglib2.0-0 \
+    libnss3 \
+    libgconf-2-4 \
+    libfontconfig1 \
+    libxrender1 \
+    libxslt1.1 \
+    libappindicator1 \
+    fonts-liberation \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libcairo2 \
+    libgtk-3-0 \
+    libxtst6 \
+    xvfb
+
+# Install Chrome WebDriver
+RUN wget https://chromedriver.storage.googleapis.com/LATEST_RELEASE -O /tmp/chromedriver_latest
+RUN wget https://chromedriver.storage.googleapis.com/$(cat /tmp/chromedriver_latest)/chromedriver_linux64.zip -O /tmp/chromedriver.zip
+RUN unzip /tmp/chromedriver.zip -d /usr/local/bin/
+RUN chmod +x /usr/local/bin/chromedriver
+
+# Install required Python packages
+RUN pip install selenium pytz boto3
+
+# Create a working directory
+WORKDIR /app
+
+# Copy your Python script to the working directory
+COPY latestscript.py /app/
+
+# Create a shell script for AWS CLI configuration and script execution
+COPY aws_config.sh /app/
+RUN chmod +x /app/aws_config.sh
+
+# Run your script when the Docker container starts
+CMD ["/app/aws_config.sh"]

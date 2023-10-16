@@ -1,0 +1,2 @@
+level,message,source,timestamp (CDT)
+WARNING,security - Error with Permissions-Policy header: Unrecognized feature: 'ambient-light-sensor'.,security,2023-10-16 00:15:17 CDT-0500
